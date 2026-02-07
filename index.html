@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MelaCut Pro - Calculadora de Despiece</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- Iconos Phosphor (opcional, usaremos texto si no carga) -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+
+<body>
+    <div id="app">
+        <!-- Header Superior -->
+        <header class="top-bar">
+            <div class="brand">
+                <div class="logo-icon"><i class="ph ph-squares-four"></i></div>
+                <h1>MelaCut <span>Pro</span></h1>
+            </div>
+            <div class="top-actions">
+                <span>Calculadora de Despiece Inteligente</span>
+            </div>
+        </header>
+
+        <div class="main-layout">
+            <!-- Sidebar Izquierda: Configuración -->
+            <aside class="config-panel">
+                <div class="panel-header">
+                    <i class="ph ph-pencil-simple"></i>
+                    <h2>Configuración</h2>
+                </div>
+
+                <div class="config-scroll">
+                    <!-- Sección 1: Medidas -->
+                    <div class="config-section">
+                        <h3>MEDIDAS EXTERIORES (MM)</h3>
+                        <div class="dims-grid">
+                            <div class="input-group">
+                                <label>Alto Total</label>
+                                <input type="number" id="height" value="1800">
+                            </div>
+                            <div class="input-group">
+                                <label>Ancho</label>
+                                <input type="number" id="width" value="900">
+                            </div>
+                            <div class="input-group">
+                                <label>Profundidad</label>
+                                <input type="number" id="depth" value="500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sección 2: Estructura -->
+                    <div class="config-section">
+                        <h3>ESTRUCTURA Y MATERIAL</h3>
+
+                        <div class="input-group">
+                            <label>Grosor Melamina</label>
+                            <div class="row-center">
+                                <select id="thickness">
+                                    <option value="15">15 mm</option>
+                                    <option value="18" selected>18 mm</option>
+                                    <option value="25">25 mm</option>
+                                </select>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="has-backing" checked>
+                                    Incluir Fondo (MDF 3mm)
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Estilo de Techo</label>
+                            <div class="toggle-switch-container">
+                                <button class="toggle-opt active" data-roof="between">Entre Laterales</button>
+                                <button class="toggle-opt" data-roof="over">Sobre Laterales</button>
+                            </div>
+                        </div>
+
+                        <div class="row-center mt-2">
+                            <label class="checkbox-label full-width">
+                                <input type="checkbox" id="has-kickplate" checked>
+                                Incluir Zócalo
+                            </label>
+                            <div class="input-suffix">
+                                <input type="number" id="kickplate-height" value="100" style="width: 70px;">
+                                <span>mm</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sección 3: Distribución -->
+                    <div class="config-section">
+                        <h3>DISTRIBUCIÓN</h3>
+                        <div class="input-group">
+                            <label>Cant. Repisas Horizontales (Fijas)</label>
+                            <input type="number" id="shelves-count" value="3" min="0" max="10">
+                            <small class="hint">Esto crea <span id="spaces-count">4</span> espacios
+                                horizontales.</small>
+                        </div>
+
+                        <!-- Futura implementación: divisiones verticales por espacio
+                        <div class="input-group mt-2">
+                            <label>Divisiones Verticales</label>
+                            <input type="number" id="dividers-count" value="0" disabled placeholder="Próximamente">
+                        </div>
+                        -->
+                    </div>
+
+                </div>
+
+                <!-- Banner IA -->
+                <div class="ai-banner">
+                    <div class="ai-header">
+                        <i class="ph ph-lightning"></i>
+                        <span>Asistente IA</span>
+                    </div>
+                    <p>Obtén recomendaciones de armado para estas medidas.</p>
+                    <button class="btn-ai">Generar Tips de Armado</button>
+                </div>
+            </aside>
+
+            <!-- Contenido Principal -->
+            <main class="content-area">
+
+                <!-- Visualizador -->
+                <section class="viz-section">
+                    <div class="viz-header">
+                        <h2>Visualización</h2>
+                        <div class="view-toggles">
+                            <button id="view-2d" class="view-btn">Plano 2D</button>
+                            <button id="view-3d" class="view-btn active">Vista 3D</button>
+                        </div>
+                    </div>
+
+                    <div class="canvas-wrapper">
+                        <div id="canvas-container"></div>
+                        <div id="schematic-container" style="display: none;"></div>
+                        <!-- Overlay de cotas podría ir aquí -->
+                    </div>
+                </section>
+
+                <!-- Lista de Corte -->
+                <section class="cutlist-section">
+                    <div class="cutlist-header">
+                        <h2>Lista de Corte (Despiece)</h2>
+                        <span class="badge-count" id="total-pieces">0 Piezas</span>
+                    </div>
+
+                    <div class="table-container">
+                        <table id="cut-table">
+                            <thead>
+                                <tr>
+                                    <th>Pieza</th>
+                                    <th>Cant.</th>
+                                    <th>Largo (mm)</th>
+                                    <th>Ancho (mm)</th>
+                                    <th>Material</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Rows generadas por JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="disclaimer">
+                        * Nota: Las medidas son finales de corte. No consideran descuento por tapacantos (aprox 1-2mm).
+                    </div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Import Map para Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module" src="main.js"></script>
+</body>
+
+</html>
