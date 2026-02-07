@@ -96,32 +96,83 @@
                     <!-- Sección 3: Distribución -->
                     <div class="config-section">
                         <h3>DISTRIBUCIÓN</h3>
+
                         <div class="input-group">
-                            <label>Cant. Repisas Horizontales (Fijas)</label>
-                            <input type="number" id="shelves-count" value="3" min="0" max="10">
-                            <small class="hint">Esto crea <span id="spaces-count">4</span> espacios
-                                horizontales.</small>
+                            <label>Dirección Principal</label>
+                            <div class="toggle-switch-container">
+                                <button class="toggle-opt active" data-dist="horizontal">Horizontal (Repisas)</button>
+                                <button class="toggle-opt" data-dist="vertical">Vertical (Montantes)</button>
+                            </div>
                         </div>
 
-                        <!-- Futura implementación: divisiones verticales por espacio
-                        <div class="input-group mt-2">
-                            <label>Divisiones Verticales</label>
-                            <input type="number" id="dividers-count" value="0" disabled placeholder="Próximamente">
+                        <!-- Horizontal Mode -->
+                        <div id="dist-horizontal">
+                            <div class="input-group">
+                                <label>Cant. Repisas</label>
+                                <input type="number" id="shelves-count" value="3" min="0" max="10">
+                                <small class="hint">Crea <span id="spaces-count">4</span> espacios horizontales.</small>
+                            </div>
+                            <div class="input-group mt-2">
+                                <label>Sub-divisiónes (Verticales por Espacio):</label>
+                                <div id="sub-cols-container"
+                                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 5px;">
+                                    <!-- Dynamic Inputs -->
+                                </div>
+                            </div>
                         </div>
-                        -->
+
+                        <!-- Vertical Mode -->
+                        <div id="dist-vertical" style="display: none;">
+                            <div class="input-group">
+                                <label>Cant. Divisiones Verticales</label>
+                                <input type="number" id="dividers-count" value="1" min="0" max="10">
+                                <small class="hint">Crea <span id="cols-count">2</span> columnas verticales.</small>
+                            </div>
+                            <div class="input-group mt-2">
+                                <label>Sub-divisiónes (Repisas por Columna):</label>
+                                <div id="sub-shelves-container"
+                                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 5px;">
+                                    <!-- Dynamic Inputs -->
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                </div>
+                    <!-- Sección 4: Puertas -->
+                    <div class="config-section">
+                        <h3>PUERTAS</h3>
+                        <div class="input-group">
+                            <label class="checkbox-label full-width">
+                                <input type="checkbox" id="has-doors">
+                                Incluir Puertas
+                            </label>
+                        </div>
 
-                <!-- Banner IA -->
-                <div class="ai-banner">
-                    <div class="ai-header">
-                        <i class="ph ph-lightning"></i>
-                        <span>Asistente IA</span>
+                        <div id="doors-config" style="display: none; margin-top: 1rem;">
+                            <div class="input-group">
+                                <label>Tipo de Bisagra</label>
+                                <select id="hinge-type">
+                                    <option value="lateral">Lateral (Parche Ext.)</option>
+                                    <option value="central">Central (Medio Parche)</option>
+                                    <option value="internal">Interna (Parche Int.)</option>
+                                </select>
+                            </div>
+
+                            <div class="input-group">
+                                <label>Cantidad de Puertas</label>
+                                <div class="row-center">
+                                    <button class="btn-qty"
+                                        onclick="document.getElementById('door-count').stepDown()">-</button>
+                                    <input type="number" id="door-count" value="2" min="1" max="4"
+                                        style="text-align: center;">
+                                    <button class="btn-qty"
+                                        onclick="document.getElementById('door-count').stepUp()">+</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <p>Obtén recomendaciones de armado para estas medidas.</p>
-                    <button class="btn-ai">Generar Tips de Armado</button>
-                </div>
+
+                </div> <!-- Cierra config-scroll -->
             </aside>
 
             <!-- Contenido Principal -->
@@ -132,8 +183,9 @@
                     <div class="viz-header">
                         <h2>Visualización</h2>
                         <div class="view-toggles">
-                            <button id="view-2d" class="view-btn">Plano 2D</button>
-                            <button id="view-3d" class="view-btn active">Vista 3D</button>
+                            <button id="view-2d" class="view-btn active">Plano 2D</button>
+                            <button id="view-3d" class="view-btn">Vista 3D</button>
+                            <button id="view-both" class="view-btn">Ambas</button>
                         </div>
                     </div>
 

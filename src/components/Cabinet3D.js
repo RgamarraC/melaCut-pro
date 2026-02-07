@@ -1,354 +1,287 @@
+
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-// --- Configuration & State ---
 let scene, camera, renderer, controls;
-let containerEl;
-let cabinetGroup;
-let labelsContainer; // HTML Overlay for dimensions
+// Materials
+let matMelamine, matKickplate, matMDF, matDoor;
+let group; // Cabinet Group
 let isWireframe = false;
-let currentView = '3d';
-let currentCabinetState = null; // Store state for redraws
-
-// --- Materials ---
-const matMelamine = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    roughness: 0.2,
-    metalness: 0.1,
-});
-
-const matInvisible = new THREE.MeshBasicMaterial({
-    visible: false
-});
-
-const matEdges3D = new THREE.LineBasicMaterial({
-    color: 0x000000,
-    linewidth: 1,
-    transparent: true,
-    opacity: 0.2
-});
-
-const matEdges2D = new THREE.LineBasicMaterial({
-    color: 0x3b82f6, // Royal Blue
-    linewidth: 2
-});
-
-const matSchematicFill = new THREE.MeshBasicMaterial({
-    color: 0xeff6ff, // Very light blue
-    side: THREE.FrontSide
-});
-
 
 export function init(container) {
-    containerEl = container;
-
-    // Create Labels Overlay
-    labelsContainer = document.createElement('div');
-    labelsContainer.style.position = 'absolute';
-    labelsContainer.style.top = '0';
-    labelsContainer.style.left = '0';
-    labelsContainer.style.width = '100%';
-    labelsContainer.style.height = '100%';
-    labelsContainer.style.pointerEvents = 'none'; // Passthrough
-    labelsContainer.style.overflow = 'hidden';
-    containerEl.appendChild(labelsContainer);
-
-    // Scene
+    // 1. Scene
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf9fafb);
+    scene.background = new THREE.Color(0xf0f0f0);
 
-    // Renderer
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
+    // 2. Camera
+    camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 5000);
+    camera.position.set(2000, 2000, 2500);
+
+    // 3. Renderer
+    renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.innerHTML = '';
     container.appendChild(renderer.domElement);
 
-    // Initial Camera
-    const aspect = container.clientWidth / container.clientHeight;
-    camera = new THREE.PerspectiveCamera(40, aspect, 0.1, 5000);
-    camera.position.set(2000, 1500, 2000);
-
-    // Controls
+    // 4. Controls
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.minDistance = 100;
-    controls.maxDistance = 6000;
-    controls.target.set(0, 900, 0);
 
-    setupLights();
+    // 5. Lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
 
-    cabinetGroup = new THREE.Group();
-    scene.add(cabinetGroup);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(1000, 2000, 1000);
+    dirLight.castShadow = true;
+    scene.add(dirLight);
 
-    // Resize
-    const resizeObserver = new ResizeObserver(() => {
-        handleResize();
-        if (currentView === '2d') updateDimensions();
+    // 6. Materials
+    // White Melamine
+    matMelamine = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5, metalness: 0.1 });
+    // Grey Kickplate
+    matKickplate = new THREE.MeshStandardMaterial({ color: 0x808080, roughness: 0.8 });
+    // MDF Backing (Brownish)
+    matMDF = new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.9 });
+    // Door (Semi-transparent Blueish for visualization)
+    matDoor = new THREE.MeshStandardMaterial({
+        color: 0xaaddff,
+        transparent: true,
+        opacity: 0.4,
+        roughness: 0.2,
+        side: THREE.DoubleSide
     });
-    resizeObserver.observe(container);
 
+    // 7. Group
+    group = new THREE.Group();
+    scene.add(group);
+
+    // 8. Animation Loop
     animate();
-}
 
-function setupLights() {
-    const ambient = new THREE.AmbientLight(0xffffff, 0.7);
-    scene.add(ambient);
-    const mainLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    mainLight.position.set(1000, 2000, 1000);
-    mainLight.castShadow = true;
-    mainLight.shadow.mapSize.width = 2048;
-    mainLight.shadow.mapSize.height = 2048;
-    scene.add(mainLight);
-    const fillLight = new THREE.DirectionalLight(0xeef2ff, 0.4);
-    fillLight.position.set(-1000, 500, -1000);
-    scene.add(fillLight);
-}
-
-function handleResize() {
-    if (!renderer || !camera) return;
-    const w = containerEl.clientWidth;
-    const h = containerEl.clientHeight;
-    const aspect = w / h;
-
-    if (camera.isPerspectiveCamera) {
-        camera.aspect = aspect;
-    } else {
-        const frustumSize = 2200;
-        camera.left = -frustumSize * aspect / 2;
-        camera.right = frustumSize * aspect / 2;
-        camera.top = frustumSize / 2;
-        camera.bottom = -frustumSize / 2;
-    }
-
-    camera.updateProjectionMatrix();
-    renderer.setSize(w, h);
+    // Resize Observer
+    const obs = new ResizeObserver(() => {
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+    obs.observe(container);
 }
 
 function animate() {
     requestAnimationFrame(animate);
     controls.update();
     renderer.render(scene, camera);
-
-    // Update labels position if moving (mostly for 2D zoom/pan)
-    if (currentView === '2d') {
-        // Debounce or just update? Update is fine for simple DOM
-        updateDimensions();
-    }
 }
-
-// --- Dimensions System ---
-
-function createLabel(text, x, y, className = 'dim-label') {
-    const div = document.createElement('div');
-    div.innerText = text;
-    div.className = className;
-    div.style.position = 'absolute';
-    // Coordinates are screen based (0,0 top left)
-    div.style.left = `${x}px`;
-    div.style.top = `${y}px`;
-    div.style.transform = 'translate(-50%, -50%)'; // Center pivot
-    labelsContainer.appendChild(div);
-    return div;
-}
-
-function updateDimensions() {
-    if (!currentCabinetState) return;
-    labelsContainer.innerHTML = ''; // Clear layout
-
-    const { width: W, height: H, hasKickplate } = currentCabinetState;
-
-    // Helper to project 3D point to Screen
-    function toScreen(x, y, z) {
-        const vec = new THREE.Vector3(x, y, z);
-        vec.project(camera);
-        const cx = (vec.x * .5 + .5) * containerEl.clientWidth;
-        const cy = (-vec.y * .5 + .5) * containerEl.clientHeight;
-        return { x: cx, y: cy };
-    }
-
-    // 1. Total Height Label (Left)
-    const topP = toScreen(-W / 2, H, 0);
-    const botP = toScreen(-W / 2, 0, 0);
-    const midY = (topP.y + botP.y) / 2;
-
-    // Draw vertical line logic could be CSS borders, but let's stick to text for simplicity
-    createLabel(`${H}mm`, topP.x - 40, midY, 'dim-label height-label');
-
-    // 2. Width Label (Top) (Optional, user ref showed height)
-    // createLabel(`${W}mm`, toScreen(0, H, 0).x, topP.y - 20, 'dim-label width-label');
-
-    // 3. Kickplate (Zócalo)
-    if (hasKickplate) {
-        const kpP = toScreen(0, currentCabinetState.kickplateHeight / 2, 0);
-        createLabel("Zócalo", kpP.x, kpP.y, 'dim-label zocalo-label');
-    }
-}
-
-
-// --- View Logic ---
 
 export function updateViewMode(mode) {
-    currentView = mode;
-    const w = containerEl.clientWidth;
-    const h = containerEl.clientHeight;
-    const aspect = w / h;
+    // Helper if needed unique logic per view
+}
 
-    if (mode === '2d') {
-        const frustumSize = 2200;
-        camera = new THREE.OrthographicCamera(
-            frustumSize * aspect / -2,
-            frustumSize * aspect / 2,
-            frustumSize / 2,
-            frustumSize / -2,
-            1,
-            5000
-        );
-        camera.position.set(0, 900, 2000);
-        camera.lookAt(0, 900, 0);
-
-        controls.object = camera;
-        controls.enableRotate = false;
-        controls.reset();
-
-        scene.background = new THREE.Color(0xffffff);
-        labelsContainer.style.display = 'block';
-
-    } else {
-        camera = new THREE.PerspectiveCamera(40, aspect, 0.1, 5000);
-        camera.position.set(2000, 1500, 2000);
-        camera.lookAt(0, 900, 0);
-
-        controls.object = camera;
-        controls.enableRotate = true;
-
-        scene.background = new THREE.Color(0xf9fafb);
-        labelsContainer.style.display = 'none'; // Hide labels in 3D
+export function setWireframe(bool) {
+    isWireframe = bool;
+    if (group) {
+        group.children.forEach(mesh => {
+            if (mesh.material) mesh.material.wireframe = isWireframe;
+        });
     }
-
-    updateMaterialVisibility();
 }
 
-export function setWireframe(enabled) {
-    isWireframe = enabled;
-    updateMaterialVisibility();
-}
-
-function updateMaterialVisibility() {
-    cabinetGroup.traverse((child) => {
-        if (child.isMesh) {
-            // FIX: Don't set child.visible = false, change material instead!
-            if (currentView === '2d') {
-                // In 2D, we want to hide the "Solid" but keep "Edges" visible
-                // Child edges are children of mesh.
-                // If we default to Invisible Material, edges still show usually? No, object handles visibility.
-                // We must swap material or set visible = true but opacity 0.
-
-                // Use Schematic Fill for 2D? (Light blue)
-                child.material = matSchematicFill;
-                child.visible = true;
-            } else {
-                // 3D Mode
-                if (isWireframe) {
-                    child.material = matInvisible; // Hide faces
-                } else {
-                    child.material = child.userData.originalMat || matMelamine;
-                }
-                child.visible = true;
-            }
-        }
-
-        if (child.isLineSegments) { // Edges
-            if (currentView === '2d') {
-                child.material = matEdges2D;
-                child.visible = true;
-            } else {
-                if (isWireframe) {
-                    child.material = matEdges3D;
-                    child.material.opacity = 1;
-                    child.material.color.setHex(0x000000);
-                } else {
-                    child.material = matEdges3D;
-                    child.material.opacity = 0.2;
-                }
-                child.visible = true;
-            }
-        }
-    });
-}
-
-function createBoard(w, h, d, x, y, z, mat = matMelamine) {
-    const geometry = new THREE.BoxGeometry(w, h, d);
-    const mesh = new THREE.Mesh(geometry, mat);
+// Helper to add Box
+function add(w, h, d, x, y, z, mat = matMelamine) {
+    const geo = new THREE.BoxGeometry(w, h, d);
+    const mesh = new THREE.Mesh(geo, mat.clone()); // Clone to allow individual wireframe toggles potentially
     mesh.position.set(x, y, z);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    mesh.userData.originalMat = mat; // Store for restore
 
-    const edgesGeo = new THREE.EdgesGeometry(geometry);
-    const edges = new THREE.LineSegments(edgesGeo, matEdges3D.clone());
-    mesh.add(edges);
+    // Edges for definition
+    const edges = new THREE.EdgesGeometry(geo);
+    const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xcccccc }));
+    mesh.add(line);
 
+    group.add(mesh);
     return mesh;
 }
 
 export function generate(state) {
-    currentCabinetState = state;
-    cabinetGroup.clear();
+    if (!group) return;
 
-    const { width: W, height: H, depth: D, thickness: T, hasKickplate, kickplateHeight: KH, roofType, shelvesCount, hasBacking } = state;
-    const add = (w, h, d, x, y, z, mat) => {
-        const mesh = createBoard(w, h, d, x, y, z, mat);
-        cabinetGroup.add(mesh);
-    };
+    // Clear
+    while (group.children.length > 0) {
+        group.remove(group.children[0]);
+    }
+
+    const { width: W, height: H, depth: D, thickness: T, hasKickplate, kickplateHeight: KH, hasBacking, roofType, shelvesCount } = state;
+
+    // -- Generate Geometries --
 
     // 1. Sides
     const sideH = (roofType === 'over') ? H - T : H;
+    // Left
     add(T, sideH, D, -W / 2 + T / 2, sideH / 2, 0);
+    // Right
     add(T, sideH, D, W / 2 - T / 2, sideH / 2, 0);
 
     // 2. Roof
     const roofW = (roofType === 'over') ? W : W - 2 * T;
-    const roofY = H - T / 2;
+    const roofY = (roofType === 'over') ? H - T / 2 : H - T / 2;
     add(roofW, T, D, 0, roofY, 0);
 
     // 3. Floor
-    const floorY = hasKickplate ? KH + T / 2 : T / 2;
+    const floorY = (hasKickplate) ? KH + T / 2 : T / 2;
     const floorW = W - 2 * T;
     add(floorW, T, D, 0, floorY, 0);
 
     // 4. Kickplate
     if (hasKickplate) {
         add(floorW, KH, T, 0, KH / 2, D / 2 - T / 2 - 20);
-        // Back kickplate hidden in 2D typically if full opacity, but here wireframe style helps
+        // Back kickplate
         add(floorW, KH, T, 0, KH / 2, -D / 2 + T / 2);
     }
 
     // 5. Backing
     if (hasBacking) {
         const internalH = (roofType === 'over' ? H - T : H) - (hasKickplate ? KH : 0) - T;
-        // Don't draw backing in 2D? Reference is schematic. Let's keep it but it might overlap.
-        // Usually backing is distinct material.
-        const mat = matMelamine.clone(); // Placeholder
-        add(floorW + 15, internalH + 15, 3, 0, floorY + internalH / 2, -D / 2 + T, mat); // Backing mat
+        add(floorW + 15, internalH + 15, 3, 0, floorY + internalH / 2, -D / 2 + T, matMDF);
     }
 
-    // 6. Shelves
-    if (shelvesCount > 0) {
-        const topY = roofY - T / 2;
-        const botY = floorY + T / 2;
-        const clearH = topY - botY;
-        const space = (clearH - (shelvesCount * T)) / (shelvesCount + 1);
-        const sD = hasBacking ? D - 20 : D;
+    // 6. Internal Distribution (Shelves or Dividers)
+    const distType = state.distType || 'horizontal';
 
-        for (let i = 1; i <= shelvesCount; i++) {
-            const y = botY + (space * i) + (T * (i - 1)) + T / 2;
-            add(floorW, T, sD, 0, y, hasBacking ? 10 : 0);
+    // Limits
+    const topY = roofY - T / 2;
+    const botY = floorY + T / 2;
+    const clearH = topY - botY;
+
+    // Depth handled (recess for internal doors)
+    let sD = hasBacking ? D - 20 : D;
+    let zPos = hasBacking ? 10 : 0;
+
+    if (state.hasDoors && state.hingeType === 'internal') {
+        const delta = T + 2;
+        sD -= delta;
+        zPos -= (delta / 2);
+    }
+
+    if (distType === 'vertical') {
+        // Vertical Dividers
+        const dCount = parseInt(state.dividersCount || 0);
+        const subShelves = state.subShelves || [];
+
+        const clearW = floorW; // W - 2T
+        // Spacing
+        const space = (clearW - (dCount * T)) / (dCount + 1);
+
+        // Start X (Left inner face) -> -W/2 + T
+        const startX = -W / 2 + T;
+
+        if (dCount > 0) {
+            for (let i = 1; i <= dCount; i++) {
+                const x = startX + (space * i) + (T * (i - 1)) + T / 2;
+                const y = botY + clearH / 2;
+                add(T, clearH, sD, x, y, zPos);
+            }
+        }
+
+        // Sub-Shelves
+        for (let c = 0; c <= dCount; c++) {
+            const count = subShelves[c] || 0;
+            if (count > 0) {
+                const subSpace = (clearH - (count * T)) / (count + 1);
+                const colStartX = startX + c * (space + T);
+                const colCenterX = colStartX + space / 2;
+                for (let s = 1; s <= count; s++) {
+                    const y = botY + (subSpace * s) + (T * (s - 1)) + T / 2;
+                    add(space, T, sD, colCenterX, y, zPos);
+                }
+            }
+        }
+
+    } else {
+        // Horizontal Shelves (Default)
+        const sCount = parseInt(state.shelvesCount || 0);
+        const subCols = state.subCols || [];
+
+        const space = (clearH - (sCount * T)) / (sCount + 1);
+
+        if (sCount > 0) {
+            for (let i = 1; i <= sCount; i++) {
+                const y = botY + (space * i) + (T * (i - 1)) + T / 2;
+                add(floorW, T, sD, 0, y, zPos);
+            }
+        }
+
+        // Sub-Verticals
+        const clearW = floorW;
+        const startX = -W / 2 + T;
+
+        for (let r = 0; r <= sCount; r++) {
+            const count = subCols[r] || 0;
+            if (count > 0) {
+                const subSpace = (clearW - (count * T)) / (count + 1);
+                const rowStartY = botY + r * (space + T);
+                const rowCenterY = rowStartY + space / 2;
+                for (let v = 1; v <= count; v++) {
+                    const x = startX + (subSpace * v) + (T * (v - 1)) + T / 2;
+                    add(T, space, sD, x, rowCenterY, zPos);
+                }
+            }
         }
     }
 
-    updateMaterialVisibility();
-    if (currentView === '2d') updateDimensions();
+    // 7. Doors
+    if (state.hasDoors && state.doorCount > 0) {
+        const gap = 3;
+        const N = parseInt(state.doorCount);
+        const internalW = W - 2 * T;
+        // Opening Height for internal logic
+        const internalH_Opening = H - (hasKickplate ? KH : 0) - 2 * T;
+
+        // Door Dimensions Calculation (Duplicate logic from CutList for Viz)
+        // Simplified Viz logic:
+        let dW, dH, dY, dZ;
+
+        // Z Position
+        if (state.hingeType === 'internal') {
+            dZ = D / 2 - T / 2; // Set inside face flush with front?
+            // Actually Internal means flush with Frame Front edge.
+            // Frame Front Z = D/2.
+            // Door Z = D/2 - T/2. (Center of door thickness).
+            dZ = D / 2 - T / 2;
+
+            dH = internalH_Opening - gap;
+            const widthSpace = internalW;
+            dW = (widthSpace / N) - gap;
+            // Center vertically between floor board top and roof board bottom
+            dY = (floorY + roofY) / 2;
+        } else {
+            // Overlay (Lateral/Central)
+            // Sits in front of cabinet.
+            dZ = D / 2 + T / 2 + 2; // +2mm gap from frame
+
+            const frontH = H - (hasKickplate ? KH : 0);
+            dH = frontH - gap;
+            dY = (hasKickplate ? KH : 0) + frontH / 2;
+
+            if (state.hingeType === 'lateral') {
+                dW = (W / N) - gap;
+            } else {
+                dW = ((W - T) / N) - gap;
+            }
+        }
+
+        const startDX = -W / 2 + (W - N * (dW + gap)) / 2 + dW / 2; // Centered
+        // Actually simplified positioning:
+        // Internal starts at -W/2 + T + ... 
+
+        // Let's use simplified X spacing logic for Viz
+        const totalDoorW = N * dW + (N - 1) * gap;
+        let cX = -totalDoorW / 2 + dW / 2;
+
+        for (let i = 0; i < N; i++) {
+            add(dW, dH, T, cX + i * (dW + gap), dY, dZ, matDoor);
+        }
+    }
 }

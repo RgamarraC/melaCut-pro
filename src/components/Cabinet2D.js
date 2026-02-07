@@ -134,25 +134,98 @@ export function generate(state) {
         g.appendChild(createText("Zócalo", startX + W / 2 * scale, kpY + KH / 2 * scale + 5));
     }
 
-    // 5. Shelves
-    if (shelvesCount > 0) {
-        // Space logic same as 3D but projected
-        const topYPos = T; // relative to H top
-        const botYPos = hasKickplate ? H - KH - T : H - T;
+    // 5. Internal Distribution
+    const distType = state.distType || 'horizontal';
 
-        const clearSpace = botYPos - topYPos;
-        const space = (clearSpace - (shelvesCount * T)) / (shelvesCount + 1);
+    // Limits (Y relative to top H)
+    const topYPos = T;
+    const botYPos = hasKickplate ? H - KH - T : H - T;
+    const clearH = botYPos - topYPos;
+    const clearW = floorW; // W - 2T
 
-        for (let i = 1; i <= shelvesCount; i++) {
-            const yPos = topYPos + (space * i) + (T * (i - 1));
-            // Draw
-            g.appendChild(createRect(
-                startX + T * scale,
-                startY + yPos * scale,
-                (W - 2 * T) * scale,
-                T * scale,
-                "#eff6ff"
-            ));
+    if (distType === 'vertical') {
+        const dCount = parseInt(state.dividersCount || 0);
+        const subShelves = state.subShelves || [];
+
+        const space = (clearW - (dCount * T)) / (dCount + 1);
+
+        if (dCount > 0) {
+            // Draw Verticals
+            for (let i = 1; i <= dCount; i++) {
+                const xPos = T + (space * i) + (T * (i - 1));
+                g.appendChild(createRect(
+                    startX + xPos * scale,
+                    startY + topYPos * scale,
+                    T * scale,
+                    clearH * scale,
+                    "#eff6ff"
+                ));
+            }
+        }
+
+        // Draw Sub-Shelves (Iterate Columns 0..dCount)
+        for (let c = 0; c <= dCount; c++) {
+            const count = subShelves[c] || 0;
+            if (count > 0) {
+                const colX = T + c * (space + T);
+                const subSpace = (clearH - (count * T)) / (count + 1);
+
+                for (let s = 1; s <= count; s++) {
+                    const yPos = topYPos + (subSpace * s) + (T * (s - 1));
+                    g.appendChild(createRect(
+                        startX + colX * scale,
+                        startY + yPos * scale,
+                        space * scale,
+                        T * scale,
+                        "#eff6ff",
+                        "#60a5fa",
+                        "1"
+                    ));
+                }
+            }
+        }
+
+    } else {
+        // Horizontal (Shelves)
+        const sCount = parseInt(shelvesCount || 0);
+        const subCols = state.subCols || [];
+
+        const space = (clearH - (sCount * T)) / (sCount + 1);
+
+        if (sCount > 0) {
+            // Draw Shelves
+            for (let i = 1; i <= sCount; i++) {
+                const yPos = topYPos + (space * i) + (T * (i - 1));
+                g.appendChild(createRect(
+                    startX + T * scale,
+                    startY + yPos * scale,
+                    clearW * scale,
+                    T * scale,
+                    "#eff6ff"
+                ));
+            }
+        }
+
+        // Draw Sub-Verticals (Iterate Rows 0..sCount)
+        for (let r = 0; r <= sCount; r++) {
+            const count = subCols[r] || 0;
+            if (count > 0) {
+                const rowY = topYPos + r * (space + T);
+                const subSpace = (clearW - (count * T)) / (count + 1);
+
+                for (let v = 1; v <= count; v++) {
+                    const xPos = T + (subSpace * v) + (T * (v - 1));
+                    g.appendChild(createRect(
+                        startX + xPos * scale,
+                        startY + rowY * scale,
+                        T * scale,
+                        space * scale,
+                        "#eff6ff",
+                        "#60a5fa",
+                        "1"
+                    ));
+                }
+            }
         }
     }
 

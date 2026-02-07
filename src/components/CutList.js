@@ -23,20 +23,86 @@ export function calculate(state) {
 
     // 5. Backing (Fondo)
     if (hasBacking) {
-        // Simple approx calculation
         const internalH = (roofType === 'over' ? H - T : H) - (hasKickplate ? KH : 0) - T;
         const bH = internalH + 15; // + groove
         const bW = floorW + 15;
         list.push({ name: 'Fondo (MDF)', w: bW, l: bH, q: 1, mat: 'MDF 3mm' });
     }
 
-    // 6. Shelves (Repisas)
-    const sCount = parseInt(shelvesCount);
-    if (sCount > 0) {
-        // Shelf width = inside width
-        // Shelf depth = inside depth (minus backing gap usually 20mm)
-        const sD = hasBacking ? D - 20 : D;
-        list.push({ name: 'Repisas', w: sD, l: floorW, q: sCount, mat: 'Melamine' });
+    // 6. Distribution (Repisas u Divisiones)
+    let sD = hasBacking ? D - 20 : D;
+    if (state.hasDoors && state.hingeType === 'internal') {
+        sD = sD - T - 2; // Recess for door
+    }
+
+    const intH = H - (hasKickplate ? KH : 0) - (2 * T); // Internal Height
+
+    if (state.distType === 'vertical') {
+        // Vertical Mode (Main: Vertical Dividers)
+        const dCount = parseInt(state.dividersCount);
+        if (dCount > 0) {
+            list.push({ name: 'División Vertical', w: sD, l: intH, q: dCount, mat: 'Melamine' });
+
+            // Sub-divisions: Shelves per column
+            const subShelves = state.subShelves || [];
+            let totalSubShelves = 0;
+            // Iterate columns (dCount + 1 spaces)
+            for (let i = 0; i <= dCount; i++) {
+                totalSubShelves += (subShelves[i] || 0);
+            }
+
+            if (totalSubShelves > 0) {
+                const colSpace = (floorW - (dCount * T)) / (dCount + 1);
+                list.push({ name: 'Repisa Secundaria', w: sD, l: colSpace, q: totalSubShelves, mat: 'Melamine' });
+            }
+        }
+    } else {
+        // Horizontal Mode (Main: Shelves)
+        const sCount = parseInt(shelvesCount);
+        if (sCount > 0) {
+            list.push({ name: 'Repisas', w: sD, l: floorW, q: sCount, mat: 'Melamine' });
+
+            // Sub-divisions: Verticals per row
+            const subCols = state.subCols || [];
+            let totalSubCols = 0;
+            // Iterate rows (sCount + 1 spaces)
+            for (let i = 0; i <= sCount; i++) {
+                totalSubCols += (subCols[i] || 0);
+            }
+
+            if (totalSubCols > 0) {
+                const rowSpace = (intH - (sCount * T)) / (sCount + 1);
+                list.push({ name: 'División Secundaria', w: sD, l: rowSpace, q: totalSubCols, mat: 'Melamine' });
+            }
+        }
+    }
+
+    // 7. Doors (Puertas)
+    if (state.hasDoors && state.doorCount > 0) {
+        let dW, dH;
+        const gap = 3; // 3mm gap standard
+        const N = parseInt(state.doorCount);
+
+        // Opening Height calculation:
+        const internalH = H - (hasKickplate ? KH : 0) - (2 * T);
+        const internalW = W - (2 * T);
+
+        if (state.hingeType === 'internal') {
+            dH = internalH - gap;
+            dW = (internalW / N) - gap;
+        } else {
+            // Lateral or Central (Overlay)
+            dH = (H - (hasKickplate ? KH : 0)) - gap;
+
+            if (state.hingeType === 'lateral') {
+                dW = (W / N) - gap;
+            } else {
+                // Central / Half Overlay
+                dW = ((W - (T / 2) * 2) / N) - gap;
+            }
+        }
+
+        list.push({ name: `Puerta (${state.hingeType})`, w: dW, l: dH, q: N, mat: 'Melamine' });
     }
 
     return list;
